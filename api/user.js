@@ -1,19 +1,36 @@
 import { MongoClient } from "mongodb";
 
-const uri = "mongodb+srv://Anandsinghsarkar:Sarkar777@cluster0.vctqol5.mongodb.net/test";
+const uri = "mongodb+srv://Anandsinghsarkar:Sarkar777@cluster0.vctqol5.mongodb.net/?retryWrites=true&w=majority";
+
+let client;
+let clientPromise;
+
+if (!global._mongoClientPromise) {
+  client = new MongoClient(uri);
+  global._mongoClientPromise = client.connect();
+}
+clientPromise = global._mongoClientPromise;
 
 export default async function handler(req, res) {
-  const { phone } = req.query;
+  try {
+    const { phone } = req.query;
 
-  const client = new MongoClient(uri);
-  await client.connect();
+    if (!phone) {
+      return res.status(400).json({ error: "Phone required" });
+    }
 
-  const db = client.db("test");
-  const user = await db.collection("users").findOne({ phone });
+    const client = await clientPromise;
+    const db = client.db("test");
 
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    const user = await db.collection("users").findOne({ phone });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
   }
-
-  res.status(200).json(user);
 }
